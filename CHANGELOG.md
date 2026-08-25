@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.0.7](https://github.com/AraneaDev/Nekyia/compare/v0.0.6...v0.0.7) (2026-08-25)
+
+
+### Tests
+
+* cover the error paths the command layer reports through ([51e805e](https://github.com/AraneaDev/Nekyia/commit/51e805e3b0b005b533c70f06d2c46a1909f6786a))
+
+
+### Continuous integration
+
+* require a conventional pull request title ([f6ab49e](https://github.com/AraneaDev/Nekyia/commit/f6ab49e6553a382b57cf695f6cc88f4e773f25ef))
+
 ## [0.0.6](https://github.com/AraneaDev/Nekyia/compare/v0.0.5...v0.0.6) (2026-08-24)
 
 
