@@ -10,6 +10,7 @@ export const USAGE = `nekyia - search every agent CLI session on your machine an
 usage:
   nekyia                        open the picker
   nekyia search <query>         search without the picker
+  nekyia blame <path>           list recent sessions that touched a matching path
   nekyia last                   resume or re-brief the latest session here
   nekyia index [--rebuild]      refresh the index
   nekyia show <uid>             print a deterministic handover as markdown
@@ -61,6 +62,15 @@ function present(values: Record<string, unknown>, keys: string[]): boolean {
   return keys.some((key) => values[key] !== undefined)
 }
 
+function positiveLimit(value: string | undefined): number | undefined {
+  if (value === undefined) return undefined
+  const limit = Number(value)
+  if (!Number.isSafeInteger(limit) || limit < 1) {
+    throw new CliError('--limit must be a positive integer')
+  }
+  return limit
+}
+
 /**
  * A terminal that understands OSC 8 shows a link; every other one, and any
  * redirected output, gets the address written out so nothing is lost.
@@ -101,7 +111,7 @@ async function dispatch(argv: string[]): Promise<number> {
     const { runPick } = await import('./commands/pick')
     return runPick()
   }
-  if (!['index', 'search', 'last', 'show', 'doctor', 'forget', 'prune', 'exclude'].includes(subcommand)) {
+  if (!['index', 'search', 'blame', 'last', 'show', 'doctor', 'forget', 'prune', 'exclude'].includes(subcommand)) {
     console.error(`unknown command: ${subcommand}\n`)
     console.error(USAGE)
     return 2
@@ -181,6 +191,28 @@ async function dispatch(argv: string[]): Promise<number> {
     }
     return runShow({ uid: positionals[0], maxChars })
   }
+  if (subcommand === 'blame') {
+    if (positionals.length !== 1 || !positionals[0]) {
+      throw new CliError('blame accepts exactly one path')
+    }
+    if (present(values, [
+      'file', 'sort', 'all', 'rebuild', 'yes', 'quiet', 'max-chars',
+      'sniff', 'emit-manifest', 'missing',
+    ])) {
+      throw new CliError('only --client, --limit, and --json can be used with blame')
+    }
+    const file = positionals[0]
+    if (file.length > 16_384 || /[\u0000-\u001f\u007f-\u009f]/u.test(file)) {
+      throw new CliError('blame path is too long or contains control characters')
+    }
+    return runSearch({
+      file,
+      client: values.client,
+      limit: positiveLimit(values.limit),
+      json: values.json === true,
+      sort: 'recent',
+    })
+  }
   if (subcommand === 'index') {
     if (positionals.length > 0) throw new CliError('index does not accept positional arguments')
     if (present(values, ['client', 'file', 'sort', 'limit', 'all', 'json', 'max-chars', 'sniff', 'emit-manifest', 'missing'])) {
@@ -201,13 +233,7 @@ async function dispatch(argv: string[]): Promise<number> {
     throw new CliError('--sort must be auto, recent, or relevance')
   }
 
-  let limit: number | undefined
-  if (values.limit !== undefined) {
-    limit = Number(values.limit)
-    if (!Number.isSafeInteger(limit) || limit < 1) {
-      throw new CliError('--limit must be a positive integer')
-    }
-  }
+  const limit = positiveLimit(values.limit)
 
   const search: SearchOptions = {
     text: positionals.join(' ') || undefined,
